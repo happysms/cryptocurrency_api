@@ -66,9 +66,10 @@ class DBUpdater:
         for crypto in self.cryptos:
             for date in generate_date_range(dates_to_fetch, datetime.now().strftime("%Y-%m-%d")):
                 daily_df, check = self.get_daily_crypto_data(crypto, date)
-
+                # print(daily_df.columns())
                 if check:  # 데이터가 없는 날도 존재하기 때문. ex) 상장되기 전
                     self.replace_into_db(daily_df, crypto)
+
 
     def replace_into_db(self, df, crypto):
         crypto = crypto.replace("-", "_")
@@ -80,14 +81,17 @@ class DBUpdater:
                                                                                  r.close, r.volume)
                 curs.execute(sql)
             self.conn.commit()
-        print("[{}] REPLACE INTO {}".format(df.index[0].strftime('%Y-%m-%d'), crypto))
+        print("[{}] REPLACE INTO {}".format(df.datetime[0].strftime('%Y-%m-%d'), crypto))
 
     def get_missing_value_frame(self, df):
         day = df.index[0].strftime("%Y-%m-%d")
         next_day = self.get_next_day(day)
-        df = df[f'{day} 09:00:00':f'{next_day} 08:59:59']
-        df = df.resample(rule='min').last()
+
+        temp = pd.DataFrame(pd.date_range(f'{day} 09:00:00', f'{next_day} 08:59:59', freq='1min'))\
+            .rename(columns={0: "datetime"})
+        df = pd.merge(left=temp, right=df, how="left", on='datetime')
         df = df.fillna(method='ffill')
+        df = df.fillna(method='bfill')
         return df
 
     def get_next_day(self, date: str) -> str:
@@ -97,11 +101,13 @@ class DBUpdater:
     def get_daily_crypto_data(self, crypto, date):
         check = False
         try:
-            df = self.get_missing_value_frame(pyupbit.get_ohlcv(ticker=crypto, count=1440,
-                                              to=datetime.strptime(f"{date} 9:00:00", "%Y-%m-%d %H:%M:%S"),
-                                              interval="minute1"))
+            df = pyupbit.get_ohlcv(ticker=crypto, count=1440,
+                                   to=datetime.strptime(f"{date} 9:00:00", "%Y-%m-%d %H:%M:%S"),
+                                   interval="minute1")
             df['datetime'] = df.index
+            df = self.get_missing_value_frame(df)
             check = True
+
             time.sleep(2)
             return df, check
 
