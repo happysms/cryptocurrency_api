@@ -9,7 +9,6 @@ import os
 
 
 class DBUpdater:
-
     def __init__(self, host, user, password):
         self.conn = pymysql.connect(host=host,
                                     user=user,
@@ -19,8 +18,13 @@ class DBUpdater:
 
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
-        self.cryptos = ['KRW-BTC', 'KRW-ETH', "KRW-XRP", "KRW-ADA", "KRW-DOT", "KRW-DOGE"]
-        self.crypto_tables = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA", "KRW_DOT", "KRW_DOGE"]
+        self.cryptos = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA",
+                        "KRW_DOT", "KRW_DOGE", "KRW_LTC", "KRW_BCH",
+                        "KRW_ETC", "KRW_ATOM", "KRW_QTUM", "KRW_TRX"]
+
+        self.crypto_tables = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA",
+                              "KRW_DOT", "KRW_DOGE", "KRW_LTC", "KRW_BCH",
+                              "KRW_ETC", "KRW_ATOM", "KRW_QTUM", "KRW_TRX"]
 
         with self.conn.cursor() as curs:
             for crypto in self.crypto_tables:
@@ -51,34 +55,33 @@ class DBUpdater:
 
         except FileNotFoundError:  # 만약 없다면 dates_to_fetch 변수에 2년 전 날짜를 할당한 후, configure 파일을 오늘 날짜로 수정한다.
             with open('config.json', 'w') as out_file:
-                dates_to_fetch = (datetime.now() - timedelta(3)).strftime("%Y-%m-%d")
+                dates_to_fetch = (datetime.now() - timedelta(1400)).strftime("%Y-%m-%d")
                 config = {"dates_to_fetch": (datetime.now(timezone.utc)).strftime("%Y-%m-%d")}
                 json.dump(config, out_file)
 
         self.update_daily_price(dates_to_fetch)
 
-        # 데이터가 너무 많아질 것을 우려하여 2년치 데이터량을 넘어서면 하루치를 삭제한다.
-        with self.conn.cursor() as curs:
-            for crypto in self.crypto_tables:
-                sql = f"SELECT COUNT(*) FROM {crypto}"
-                curs.execute(sql)
-                result = curs.fetchall()
-
-                if result[0][0] > 1051200:  # 730(2년) * 1440 = 1051200
-                    sql = f'select MIN(datetime) from {crypto}'
-                    curs.execute(sql)
-
-                    result = curs.fetchall()
-                    day = result[0][0].strftime("%Y-%m-%d")
-                    next_day = self.get_next_day(day)
-
-                    sql = f"delete from {crypto} where datetime >= '{day} 09:00:00' and datetime <= '{next_day} 08:59:00'"
-                    curs.execute(sql)
-
-            self.conn.commit()
+        # # 데이터가 너무 많아질 것을 우려하여 2년치 데이터량을 넘어서면 하루치를 삭제한다.
+        # with self.conn.cursor() as curs:
+        #     for crypto in self.crypto_tables:
+        #         sql = f"SELECT COUNT(*) FROM {crypto}"
+        #         curs.execute(sql)
+        #         result = curs.fetchall()
+        #
+        #         if result[0][0] > 1051200:  # 730(2년) * 1440 = 1051200
+        #             sql = f'select MIN(datetime) from {crypto}'
+        #             curs.execute(sql)
+        #
+        #             result = curs.fetchall()
+        #             day = result[0][0].strftime("%Y-%m-%d")
+        #             next_day = self.get_next_day(day)
+        #
+        #             sql = f"delete from {crypto} where datetime >= '{day} 09:00:00' and datetime <= '{next_day} 08:59:00'"
+        #             curs.execute(sql)
+        #
+        #    self.conn.commit()
 
     def update_daily_price(self, dates_to_fetch):
-
         def generate_date_range(start, end):
             start = datetime.strptime(start, "%Y-%m-%d")
             end = datetime.strptime(end, "%Y-%m-%d")
@@ -119,6 +122,8 @@ class DBUpdater:
         return tomorrow.strftime('%Y-%m-%d')
 
     def get_daily_crypto_data(self, crypto, date):
+        """특정 종목의 특정 날짜에 해당하는 분봉 데이터를 반환한다."""
+
         check = False
         try:
             df = pyupbit.get_ohlcv(ticker=crypto, count=1440,
@@ -128,7 +133,7 @@ class DBUpdater:
             df = self.get_missing_value_frame(df)
             check = True
 
-            time.sleep(2)
+            time.sleep(1.5)
             return df, check
 
         except Exception:
@@ -138,12 +143,11 @@ class DBUpdater:
     # def __del__(self):
     #     self.conn.close()
 
-host = os.getenv('HOST')
-user = os.getenv('USER')
-password = os.getenv('PASSWORD')
+# host = os.getenv('HOST')
+# user = os.getenv('USER')
+# password = os.getenv('PASSWORD')
 
 # 처음에 ec2를 사용하여 많은 데이터를 불러올때
 if __name__ == "__main__":
     db = DBUpdater(host, user, password)
     db.execute_daily()
-

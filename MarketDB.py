@@ -1,8 +1,8 @@
 import pandas as pd
 import pymysql
-import pyupbit
 from datetime import datetime, timedelta
 import mplfinance as mpf
+
 
 class MarketDB:
     def __init__(self):
@@ -13,7 +13,10 @@ class MarketDB:
                                     db="crypto",
                                     charset="utf8")
 
-        self.crypto_tables = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA", "KRW_DOT", "KRW_DOGE"]
+        self.crypto_tables = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA",
+                              "KRW_DOT", "KRW_DOGE", "KRW_LTC", "KRW_BCH",
+                              "KRW_ETC", "KRW_ATOM", "KRW_QTUM", "KRW_TRX"]
+
 
     def __del__(self):
         """mariaDB 연결 해제"""
@@ -34,6 +37,8 @@ class MarketDB:
         return df
 
     def visualize_ohlcv(self, df):
+        """데이터프레임으로 받은 데이터를 차트로 시각화한다."""
+
         kwargs = dict(title="OHLCV", type='candle', mav=(5, 20, 50), volume=True, ylabel='ohlc candles',
                       figratio=(25, 9))
         mc = mpf.make_marketcolors(up='r', down='b', inherit=True)
