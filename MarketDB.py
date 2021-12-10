@@ -7,10 +7,10 @@ import mplfinance as mpf
 class MarketDB:
     def __init__(self):
         """mariaDB 연결"""
-        self.conn = pymysql.connect(host="cryptocurrencydatabase.c5h79dp2k6f7.ap-northeast-2.rds.amazonaws.com",
-                                    user="admin",
-                                    password="khuminsung12!",
-                                    db="crypto",
+        self.conn = pymysql.connect(host="",
+                                    user="",
+                                    password="!",
+                                    db="",
                                     charset="utf8")
 
         self.crypto_tables = ['KRW_BTC', 'KRW_ETH', "KRW_XRP", "KRW_ADA",
